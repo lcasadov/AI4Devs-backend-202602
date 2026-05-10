@@ -98,18 +98,33 @@ Scenario: Cuerpo vacío
 
 ### REQ-GC-002 — Consulta de candidato por ID
 
-The system SHALL devolver la ficha de un candidato a partir de su identificador numérico, respondiendo 404 si no existe y 400 si el ID no es numérico.
+The system SHALL devolver la ficha completa de un candidato a partir de su identificador numérico, incluyendo sus colecciones anidadas en una sola consulta: `educations[]`, `workExperiences[]`, `resumes[]` y `applications[]` (cada Application incluye `{ id, applicationDate, position: { id, title }, interviews: [{ interviewDate, interviewStep.name, score }] }`). Responde 404 si no existe y 400 si el ID no es numérico.
 
-**Origen:** `docs/readme.md §2.4` · CU-02
+**Origen:** `docs/readme.md §2.4` · CU-02 · resolución de OQ-GC-01 (2026-05-10): el endpoint sirve la ficha completa para CU-02, evitando que el frontend tenga que orquestar varias peticiones.
 
 #### Escenarios
 
 ```gherkin
-Scenario: Candidato existente
-  Given un Candidate con id 7
+Scenario: Candidato existente con datos completos
+  Given un Candidate con id 7 con 2 educations, 1 workExperience, 1 resume y 1 application en Position 42
+    And esa Application tiene 1 Interview con score 4 en el step "Technical"
   When envío GET /candidates/7
   Then la respuesta es 200
-  And el cuerpo contiene firstName, lastName y email
+    And el cuerpo contiene firstName, lastName y email
+    And educations es un array con 2 elementos
+    And workExperiences es un array con 1 elemento
+    And resumes es un array con 1 elemento
+    And applications es un array con 1 elemento
+    And applications[0].position contiene { id: 42, title: <titulo> }
+    And applications[0].interviews[0] contiene { interviewDate, interviewStep: { name: "Technical" }, score: 4 }
+
+Scenario: Candidato sin datos anidados
+  Given un Candidate con id 8 sin educations, sin workExperiences y sin applications
+  When envío GET /candidates/8
+  Then la respuesta es 200
+    And educations es []
+    And workExperiences es []
+    And applications es []
 
 Scenario: Candidato inexistente
   Given que no existe Candidate con id 9999
@@ -184,16 +199,18 @@ Scenario: Fichero excede 10 MB
 | RN-GC-05 | `firstName` y `lastName` aceptan únicamente letras (incluidos acentos castellanos `ñÑáéíóúÁÉÍÓÚ`) y espacios; longitud 2-100 | `validator.ts` |
 | RN-GC-06 | `phone` (opcional) sigue formato España: 9 dígitos empezando por 6, 7 o 9 | `validator.ts` |
 | RN-GC-07 | Longitudes máximas: `address` ≤ 100, `Education.institution` ≤ 100, `Education.title` ≤ 100, `WorkExperience.company` ≤ 100, `WorkExperience.position` ≤ 100, `WorkExperience.description` ≤ 200 | `validator.ts` |
+| RN-GC-08 | `GET /candidates/:id` devuelve la ficha completa con `educations`, `workExperiences`, `resumes` y `applications` (con `position` y `interviews` anidados) en una sola consulta vía `include` de Prisma, evitando N+1 desde el frontend. | OQ-GC-01 resuelta · `Candidate.findOne` |
+| RN-GC-09 | V1 no exige autenticación en ninguno de los endpoints de candidatos (`POST /candidates`, `GET /candidates/:id`, `POST /upload`). Es un gap aceptado conscientemente para V1 — todo acceso a estos endpoints debe asumir que el cliente está autorizado por la capa superior (red interna, proxy, etc.). La introducción de autenticación queda como trabajo futuro y NO se considera breaking de esta spec mientras los contratos JSON se mantengan. | OQ-GC-02 resuelta · `docs/readme.md §2.8` |
 
 ---
 
 ## Restricciones de seguridad
 
-| Acción | Roles permitidos | Origen |
-|---|---|---|
-| POST /candidates | Reclutador (alta manual) · Candidato (autocandidatura portal) | `docs/readme.md §2.3` |
-| GET /candidates/:id | Reclutador | `docs/readme.md §2.4` — gap conocido: no hay auth en V1 |
-| POST /upload | Reclutador · Candidato | `docs/readme.md §2.5` |
+| Acción | Roles permitidos | Auth en V1 | Origen |
+|---|---|---|---|
+| POST /candidates | Reclutador (alta manual) · Candidato (autocandidatura portal) | No (RN-GC-09) | `docs/readme.md §2.3` |
+| GET /candidates/:id | Reclutador | No (RN-GC-09) | `docs/readme.md §2.4` |
+| POST /upload | Reclutador · Candidato | No (RN-GC-09) | `docs/readme.md §2.5` |
 
 ---
 
@@ -207,5 +224,5 @@ Scenario: Fichero excede 10 MB
 
 ## Open Questions
 
-- [ ] OQ-GC-01: ¿`GET /candidates/:id` debe incluir `educations`, `workExperiences` y `applications` en la respuesta, o solo los datos del candidato? Ver decisión D6 en `docs/readme.md §2.8`.
-- [ ] OQ-GC-02: ¿Se requiere autenticación para `GET /candidates/:id` y `POST /candidates` en V1? Actualmente no hay middleware de auth (gap conocido).
+- [x] OQ-GC-01: ¿`GET /candidates/:id` debe incluir `educations`, `workExperiences` y `applications` en la respuesta, o solo los datos del candidato? → **Sí, ficha completa**. Devuelve `educations`, `workExperiences`, `resumes` y `applications` (con `position` y `interviews` anidados) en una sola consulta. Implementado en `Candidate.findOne`. Resuelto 2026-05-10. Ver REQ-GC-002 y RN-GC-08.
+- [x] OQ-GC-02: ¿Se requiere autenticación para `GET /candidates/:id` y `POST /candidates` en V1? → **No en V1**. Decisión consciente: V1 expone los endpoints sin auth y delega la protección a la capa de red. La introducción de auth queda como trabajo futuro y no se considera breaking de los contratos actuales. Resuelto 2026-05-10. Ver RN-GC-09.

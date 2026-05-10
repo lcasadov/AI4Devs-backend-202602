@@ -268,6 +268,40 @@ components:
         resumes:
           type: array
           items: { $ref: '#/components/schemas/Resume' }
+        applications:
+          type: array
+          description: |
+            Applications of the candidate to positions, each one including the
+            position summary and the interviews already recorded. Returned by
+            GET /candidates/:id in a single Prisma query (no N+1).
+          items:
+            type: object
+            required: [id, applicationDate, position, interviews]
+            properties:
+              id: { type: integer, example: 100 }
+              applicationDate: { type: string, format: date-time }
+              position:
+                type: object
+                required: [id, title]
+                properties:
+                  id: { type: integer, example: 42 }
+                  title: { type: string, example: "Senior Backend Engineer" }
+              interviews:
+                type: array
+                items:
+                  type: object
+                  required: [interviewDate, interviewStep, score]
+                  properties:
+                    interviewDate: { type: string, format: date-time }
+                    interviewStep:
+                      type: object
+                      required: [name]
+                      properties:
+                        name: { type: string, example: "Technical Interview" }
+                    score:
+                      type: integer
+                      nullable: true
+                      example: 4
 
     CandidateInput:
       type: object
