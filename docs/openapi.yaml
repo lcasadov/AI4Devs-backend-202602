@@ -199,13 +199,33 @@ paths:
                 kanbanRow:
                   value:
                     - candidateId: 7
+                      applicationId: 100
                       fullName: Ana García
                       currentInterviewStep: Technical Interview
+                      currentInterviewStepId: 5
                       averageScore: 4.5
+                      lastEducation:
+                        title: Máster
+                        institution: UC3M
+                      lastWorkExperience:
+                        position: Senior Developer
+                        company: ACME
                     - candidateId: 12
+                      applicationId: 101
                       fullName: Juan Pérez
                       currentInterviewStep: Screening
+                      currentInterviewStepId: 1
                       averageScore: null
+                      lastEducation: null
+                      lastWorkExperience: null
+                    - candidateId: 13
+                      applicationId: 102
+                      fullName: Marta López
+                      currentInterviewStep: null
+                      currentInterviewStepId: null
+                      averageScore: null
+                      lastEducation: null
+                      lastWorkExperience: null
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -343,14 +363,38 @@ components:
 
     PositionCandidate:
       type: object
-      required: [candidateId, fullName, currentInterviewStep]
+      required:
+        - candidateId
+        - applicationId
+        - fullName
+        - currentInterviewStep
+        - currentInterviewStepId
+        - averageScore
+        - lastEducation
+        - lastWorkExperience
       properties:
         candidateId: { type: integer, example: 7 }
+        applicationId:
+          type: integer
+          example: 100
+          description: |
+            Id of the Application row; required by PUT /candidates/:id/stage
+            (a candidate may have multiple applications — PRD D3 §2.8).
         fullName: { type: string, example: "Ana García" }
         currentInterviewStep:
           type: string
+          nullable: true
           example: "Technical Interview"
-          description: "Name of the InterviewStep where the application currently sits"
+          description: |
+            Name of the InterviewStep where the application currently sits.
+            Null represents the "No Asignado" column (PRD D4 §2.8).
+        currentInterviewStepId:
+          type: integer
+          nullable: true
+          example: 5
+          description: |
+            Id of the current InterviewStep. Null for "No Asignado".
+            Used by the frontend to detect drops on the same column and skip the PUT.
         averageScore:
           type: number
           format: float
@@ -359,6 +403,26 @@ components:
           description: |
             AVG of Interview.score for this Application, excluding NULLs.
             Null when no interview has a score yet (PRD decision D2 §2.8).
+        lastEducation:
+          type: object
+          nullable: true
+          required: [title, institution]
+          properties:
+            title: { type: string, example: "Máster" }
+            institution: { type: string, example: "UC3M" }
+          description: |
+            Most recent Education by startDate desc (take 1). Null if the
+            candidate has no education records (B.1-ext).
+        lastWorkExperience:
+          type: object
+          nullable: true
+          required: [position, company]
+          properties:
+            position: { type: string, example: "Senior Developer" }
+            company: { type: string, example: "ACME" }
+          description: |
+            Most recent WorkExperience by startDate desc (take 1). Null if the
+            candidate has no work-experience records (B.1-ext).
 
     StageUpdateInput:
       type: object

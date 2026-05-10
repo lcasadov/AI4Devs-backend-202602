@@ -16,9 +16,9 @@ Habilita el caso de uso central del producto: un tablero Kanban donde cada colum
 
 ### REQ-KB-001 — Listar candidatos de una posición para el Kanban
 
-The system SHALL devolver, para una posición dada, el listado de todas las `Application` activas con: `candidateId`, `fullName` (concatenación `firstName + " " + lastName`), `currentInterviewStep` (nombre de la fase o `null` si "No Asignado"), `averageScore` (media de entrevistas con score no nulo o `null` si no hay), `lastEducation` (`{title, institution}` de la formación más reciente por `startDate desc`, o `null`) y `lastWorkExperience` (`{position, company}` de la experiencia más reciente por `startDate desc`, o `null`), resolviendo el resultado en una sola consulta (sin N+1).
+The system SHALL devolver, para una posición dada, el listado de todas las `Application` activas con: `candidateId`, `applicationId` (id de la `Application`, requerido por `PUT /candidates/:id/stage`), `fullName` (concatenación `firstName + " " + lastName`), `currentInterviewStep` (nombre de la fase o `null` si "No Asignado"), `currentInterviewStepId` (id numérico del step actual o `null`, usado por el frontend para detectar drops sobre la misma columna y evitar PUT innecesarios), `averageScore` (media de entrevistas con score no nulo o `null` si no hay), `lastEducation` (`{title, institution}` de la formación más reciente por `startDate desc`, o `null`) y `lastWorkExperience` (`{position, company}` de la experiencia más reciente por `startDate desc`, o `null`), resolviendo el resultado en una sola consulta (sin N+1).
 
-**Origen:** `docs/readme.md §2.6` · CU-04 · ampliado por B.1-ext (formación/experiencia más reciente)
+**Origen:** `docs/readme.md §2.6` · CU-04 · ampliado por B.1-ext (formación/experiencia más reciente) · ampliado por FE.6 (`applicationId` + `currentInterviewStepId` requeridos por el tablero drag&drop, PR #7)
 
 #### Escenarios
 
@@ -71,6 +71,14 @@ Scenario: Application con currentInterviewStep nulo
   Given una Application del candidato D con currentInterviewStep = null
   When envío GET /positions/42/candidates
   Then el elemento del candidato D tiene currentInterviewStep = null
+    And currentInterviewStepId = null
+
+Scenario: Respuesta incluye applicationId y currentInterviewStepId
+  Given la Application 100 del candidato A está en el step "Technical" (id 5)
+  When envío GET /positions/42/candidates
+  Then el elemento del candidato A contiene applicationId = 100
+    And currentInterviewStepId = 5
+    And currentInterviewStep = "Technical"
 ```
 
 ---
@@ -194,6 +202,7 @@ Scenario: No hay posiciones
 | RN-KB-05 | Si el candidato tiene múltiples `Application` (varias posiciones), `PUT /candidates/:id/stage` afecta solo a la `Application` indicada por `applicationId` | `docs/readme.md §2.7` |
 | RN-KB-06 | `lastEducation` y `lastWorkExperience` se obtienen tomando el registro con `startDate` máximo (orden descendente, `take: 1`) en una única consulta vía `include` de Prisma. Si no hay registros, el valor es `null`. | B.1-ext |
 | RN-KB-07 | Los `InterviewStep` devueltos por `GET /positions/:id/interviewSteps` se ordenan por `orderIndex` ascendente; este orden define las columnas del tablero. | B.7 |
+| RN-KB-08 | El DTO de `GET /positions/:id/candidates` incluye `applicationId` (necesario para el body de `PUT /candidates/:id/stage`) y `currentInterviewStepId` (usado por el frontend para evitar PUT cuando el drop cae en la misma columna). | FE.6 (PR #7) |
 
 ---
 
