@@ -6,9 +6,9 @@ Este change depende de que el change `implementar-kanban-endpoints` esté comple
 
 ## Backend (extensiones de implementar-kanban-endpoints)
 
-- [ ] B.7 Añadir endpoint `GET /positions/:id/interviewSteps` — devuelve `[{ id, name, orderIndex }]` con los steps del InterviewFlow de la posición, ordenados por `orderIndex`. Criterios: 404 si posición no existe; 400 si id no numérico; array vacío si flow sin steps; misma arquitectura que B.3/B.5.
-- [ ] B.8 Añadir endpoint `GET /positions` — devuelve `[{ id, title, status }]` con todas las posiciones (sin paginación en V1). Criterios: 200 con array (vacío si no hay posiciones); misma arquitectura que B.3/B.5.
-- [ ] B.1-ext Ampliar DTO de `GET /positions/:id/candidates` para incluir `lastEducation: { title, institution } | null` y `lastWorkExperience: { position, company } | null`. La query Prisma debe incluir `candidate.educations` y `candidate.workExperiences` ordenadas por `endDate DESC` con `take: 1`. Ver D-FE-07 en design.md.
+- [x] B.7 Añadir endpoint `GET /positions/:id/interviewSteps` — devuelve `[{ id, name, orderIndex }]` con los steps del InterviewFlow de la posición, ordenados por `orderIndex`. Criterios: 404 si posición no existe; 400 si id no numérico; array vacío si flow sin steps; misma arquitectura que B.3/B.5.
+- [x] B.8 Añadir endpoint `GET /positions` — devuelve `[{ id, title, status }]` con todas las posiciones (sin paginación en V1). Criterios: 200 con array (vacío si no hay posiciones); misma arquitectura que B.3/B.5.
+- [x] B.1-ext Ampliar DTO de `GET /positions/:id/candidates` para incluir `lastEducation: { title, institution } | null` y `lastWorkExperience: { position, company } | null`. La query Prisma debe incluir `candidate.educations` y `candidate.workExperiences` ordenadas por `endDate DESC` con `take: 1`. Ver D-FE-07 en design.md.
 
 ## Frontend
 
