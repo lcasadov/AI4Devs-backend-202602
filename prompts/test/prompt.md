@@ -167,3 +167,92 @@ Al principio del  fichero `TESTING-STRATEGY.md` genera un **resumen ejecutivo** 
    para que los resuelva con el equipo.
 
 
+prompt 2
+Rol: Eres un Test Architect Senior con más de 15 años de experiencia
+diseñando estrategias de testing para aplicaciones empresariales en múltiples
+stacks (TypeScript con Jest).
+Objetivo: Crear una suite completa de test unitarios para backend con ts-jtest en la que se realicen todas las pruebas unitarias completas en la generación de nuevos candidatos.Como objetivo principal tenemos que validar 3 tipos de pruebas:
+
+Prueba 1: llegan todos los datos correctos y minimos para la creación del candidato.
+Prueba 2: llegan todos los campos rellenos incluidos los documentos adjuntos para la creación de candidato.
+Prueba 3: llegan datos con datos obligatorios faltantes.
+En el caso de las dos primeras pruebas se debe comprobar que todos los datos quedan correctamente registrados en la base de datos.
+Genera pruebas unitarias para el siguiente código siguiendo estas reglas:
+
+ESTRUCTURA
+
+Usa describe para agrupar por módulo o clase
+Nombra cada test como: "should [acción esperada] when [condición]"
+Ejemplo: "should return null when user does not exist"
+Estructura cada prueba con el patrón AAA:
+
+Arrange: configura los datos, mocks y estado inicial necesario
+Act: invoca la función o método bajo prueba
+Assert: verifica el resultado con los expects
+
+
+
+MOCKS
+
+Usa jest.mock('ruta/modulo') al inicio del archivo para mockear dependencias externas
+Usa jest.spyOn cuando no quieras mockear todo el módulo, solo un método concreto
+Usa jest.fn() para simular funciones y métodos
+Usa mockResolvedValue para funciones async
+Usa mockReturnValue para funciones síncronas
+Resetea mocks en beforeEach con jest.clearAllMocks()
+
+EXPECTS
+
+Verifica el valor de retorno con expect(result).toBe() o toEqual()
+Verifica que se llamó una función con expect(mockFn).toHaveBeenCalledWith()
+Verifica errores con expect(fn).rejects.toThrow()
+Verifica llamadas únicas con expect(mockFn).toHaveBeenCalledTimes(1)
+
+BASE DE DATOS
+
+Si el código usa Prisma, mockea el cliente con jest.mock('@prisma/client')
+y usa jest.Mocked<typeof prisma> para tipar correctamente los mocks
+Si el código usa otro ORM o cliente, indícalo y mockea de forma equivalente
+
+ENDPOINTS (si aplica)
+
+Si el código es un endpoint Express, usa supertest para simular peticiones HTTP
+
+COBERTURA
+
+Genera casos suficientes para alcanzar una cobertura mínima del 80%
+Cubre siempre estos casos por cada función:
+
+Caso feliz (happy path)
+Caso de error o excepción
+Casos borde: null, undefined, lista vacía, string vacío, número 0
+
+
+
+RESTRICCIONES
+
+NO uses any como tipo salvo que el código original lo use
+NO dejes describes o its vacíos o con expect(true).toBe(true)
+NO mockees lo que no es una dependencia externa (evita mockear utilidades puras)
+NO repitas el mismo caso de prueba con distinto nombre
+NO uses setTimeout ni sleep en los tests, usa jest.useFakeTimers() si necesitas controlar el tiempo
+NO importes módulos que no sean necesarios para el test
+NO omitas el // Arrange, // Act, // Assert como comentarios en cada test
+NO generes más de un act por test (un solo comportamiento por prueba)
+
+Output:
+
+Un único archivo .test.ts por cada módulo testeado
+El archivo debe poder ejecutarse con npx jest sin errores de compilación
+Incluye al inicio del archivo:
+
+Imports del módulo bajo prueba
+Mocks con jest.mock()
+Variables compartidas entre tests
+Un beforeEach con jest.clearAllMocks()
+
+
+Cada describe agrupa los tests de una sola función o método
+Devuelve solo el código TypeScript, sin explicaciones ni texto adicional fuera del archivo
+Añade un comentario al inicio indicando el porcentaje de cobertura estimado:
+Ejemplo: // Cobertura estimada: 85%
