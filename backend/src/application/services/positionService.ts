@@ -4,8 +4,10 @@ const prisma = new PrismaClient();
 
 export interface CandidateKanbanDTO {
     candidateId: number;
+    applicationId: number;
     fullName: string;
     currentInterviewStep: string | null;
+    currentInterviewStepId: number | null;
     averageScore: number | null;
     lastEducation: { title: string; institution: string } | null;
     lastWorkExperience: { position: string; company: string } | null;
@@ -77,8 +79,10 @@ export const getCandidatesByPosition = async (positionId: number): Promise<Candi
 
         return {
             candidateId: application.candidateId,
+            applicationId: application.id,
             fullName: `${application.candidate.firstName} ${application.candidate.lastName}`,
             currentInterviewStep: application.interviewStep?.name ?? null,
+            currentInterviewStepId: application.currentInterviewStep ?? null,
             averageScore,
             lastEducation,
             lastWorkExperience,
