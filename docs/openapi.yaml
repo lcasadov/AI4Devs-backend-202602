@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: LTI - ATS API
+  description: |
+    Backend REST API for the LTI Applicant Tracking System (V1).
+
+    Covers the 5 use cases that drive the Kanban-based candidate management
+    workflow: candidate creation, candidate retrieval, CV upload, listing
+    candidates by position, and moving a candidate between interview stages.
+
+    Spec-first contract per ADR-008 in docs/readme.md §3.15. This file is the
+    single source of truth; future OpenAPI request/response validation
+    middleware (e.g. express-openapi-validator) MUST consume this document.
+  version: 0.1.0
+  contact:
+    name: LTI Team
+servers:
+  - url: http://localhost:3010
+    description: Local development (Docker Compose)
+security: []
+tags:
+  - name: Candidates
+    description: Candidate lifecycle and Kanban stage operations
+  - name: Files
+    description: CV upload
+  - name: Positions
+    description: Kanban data per position
+
+paths:
+  /candidates:
+    post:
+      tags: [Candidates]
+      summary: Create a candidate (CU-01)
+      description: |
+        Create a candidate with nested educations, work experiences and a
+        previously-uploaded CV reference. The whole aggregate is persisted in
+        a single transaction; either everything succeeds or nothing is saved.
+      operationId: createCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateInput'
+            examples:
+              full:
+                summary: Full payload with one education, one experience and one CV
+                value:
+                  firstName: Albert
+                  lastName: Saelices
+                  email: albert.saelices@gmail.com
+                  phone: '656874937'
+                  address: Calle Sant Dalmir 2, 5ºB. Barcelona
+                  educations:
+                    - institution: UC3M
+                      title: Computer Science
+                      startDate: '2006-12-31'
+                      endDate: '2010-12-26'
+                  workExperiences:
+                    - company: Coca Cola
+                      position: SWE
+                      description: ''
+                      startDate: '2011-01-13'
+                      endDate: '2013-01-17'
+                  cv:
+                    filePath: uploads/1715760936750-cv.pdf
+                    fileType: application/pdf
+      responses:
+        '201':
+          description: Candidate created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /candidates/{id}:
+    get:
+      tags: [Candidates]
+      summary: Get a candidate by id (CU-02)
+      operationId: getCandidateById
+      parameters:
+        - $ref: '#/components/parameters/CandidateId'
+      responses:
+        '200':
+          description: Candidate found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /candidates/{id}/stage:
+    put:
+      tags: [Candidates]
+      summary: Move a candidate to another interview step (CU-05)
+      description: |
+        Drag & drop in the Kanban triggers this endpoint. Validates that the
+        target step belongs to the InterviewFlow of the Application's Position.
+      operationId: updateCandidateStage
+      parameters:
+        - $ref: '#/components/parameters/CandidateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StageUpdateInput'
+      responses:
+        '200':
+          description: Stage updated (idempotent if newInterviewStepId equals current step)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /upload:
+    post:
+      tags: [Files]
+      summary: Upload a CV (PDF) (CU-03)
+      description: |
+        Multipart upload. Returns server-side filePath that can be referenced
+        in CU-01 inside the `cv` field.
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file, max 10 MB
+      responses:
+        '200':
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Missing file part or invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /positions/{id}/candidates:
+    get:
+      tags: [Positions]
+      summary: List candidates of a position with stage and average score (CU-04)
+      description: |
+        Returns the data needed to render the Kanban board for a position:
+        full name, current interview step (column) and average interview score.
+      operationId: listCandidatesByPosition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Position identifier
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Candidates list (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PositionCandidate'
+              examples:
+                kanbanRow:
+                  value:
+                    - candidateId: 7
+                      fullName: Ana García
+                      currentInterviewStep: Technical Interview
+                      averageScore: 4.5
+                    - candidateId: 12
+                      fullName: Juan Pérez
+                      currentInterviewStep: Screening
+                      averageScore: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Position not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CandidateId:
+      name: id
+      in: path
+      required: true
+      description: Candidate identifier (numeric)
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    Candidate:
+      type: object
+      required: [id, firstName, lastName, email]
+      properties:
+        id: { type: integer, example: 7 }
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 255 }
+        phone: { type: string, nullable: true, maxLength: 15 }
+        address: { type: string, nullable: true, maxLength: 100 }
+        educations:
+          type: array
+          items: { $ref: '#/components/schemas/Education' }
+        workExperiences:
+          type: array
+          items: { $ref: '#/components/schemas/WorkExperience' }
+        resumes:
+          type: array
+          items: { $ref: '#/components/schemas/Resume' }
+
+    CandidateInput:
+      type: object
+      required: [firstName, lastName, email]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName:  { type: string, minLength: 1, maxLength: 100 }
+        email:     { type: string, format: email, maxLength: 255 }
+        phone:     { type: string, nullable: true, maxLength: 15, pattern: '^[+0-9 ()-]{6,15}$' }
+        address:   { type: string, nullable: true, maxLength: 100 }
+        educations:
+          type: array
+          items: { $ref: '#/components/schemas/EducationInput' }
+        workExperiences:
+          type: array
+          items: { $ref: '#/components/schemas/WorkExperienceInput' }
+        cv:
+          $ref: '#/components/schemas/ResumeInput'
+
+    Education:
+      type: object
+      required: [id, institution, title, startDate]
+      properties:
+        id: { type: integer }
+        institution: { type: string, maxLength: 100 }
+        title: { type: string, maxLength: 250 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+
+    EducationInput:
+      type: object
+      required: [institution, title, startDate]
+      properties:
+        institution: { type: string, minLength: 1, maxLength: 100 }
+        title: { type: string, minLength: 1, maxLength: 250 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true, description: "Must be >= startDate when present" }
+
+    WorkExperience:
+      type: object
+      required: [id, company, position, startDate]
+      properties:
+        id: { type: integer }
+        company: { type: string, maxLength: 100 }
+        position: { type: string, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 200 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+
+    WorkExperienceInput:
+      type: object
+      required: [company, position, startDate]
+      properties:
+        company: { type: string, minLength: 1, maxLength: 100 }
+        position: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 200 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+
+    Resume:
+      type: object
+      required: [id, filePath, fileType, uploadDate]
+      properties:
+        id: { type: integer }
+        filePath: { type: string, maxLength: 500 }
+        fileType: { type: string, maxLength: 50 }
+        uploadDate: { type: string, format: date-time }
+
+    ResumeInput:
+      type: object
+      required: [filePath, fileType]
+      properties:
+        filePath: { type: string, description: "Server-side path returned by POST /upload" }
+        fileType: { type: string, enum: [application/pdf] }
+
+    UploadResponse:
+      type: object
+      required: [filePath, fileType]
+      properties:
+        filePath:
+          type: string
+          example: uploads/1715760936750-cv.pdf
+        fileType:
+          type: string
+          example: application/pdf
+        originalName:
+          type: string
+          example: cv.pdf
+        size:
+          type: integer
+          description: Bytes
+          example: 1048576
+
+    PositionCandidate:
+      type: object
+      required: [candidateId, fullName, currentInterviewStep]
+      properties:
+        candidateId: { type: integer, example: 7 }
+        fullName: { type: string, example: "Ana García" }
+        currentInterviewStep:
+          type: string
+          example: "Technical Interview"
+          description: "Name of the InterviewStep where the application currently sits"
+        averageScore:
+          type: number
+          format: float
+          nullable: true
+          example: 4.5
+          description: |
+            AVG of Interview.score for this Application, excluding NULLs.
+            Null when no interview has a score yet (PRD decision D2 §2.8).
+
+    StageUpdateInput:
+      type: object
+      required: [applicationId, newInterviewStepId]
+      properties:
+        applicationId:
+          type: integer
+          minimum: 1
+          description: |
+            Application to move (a candidate can have multiple applications,
+            so the application must be specified, per PRD decision D3 §2.8).
+        newInterviewStepId:
+          type: integer
+          minimum: 1
+          description: |
+            Target InterviewStep id. MUST belong to the InterviewFlow of the
+            Application's Position; validated server-side.
+
+    StageUpdateResponse:
+      type: object
+      required: [applicationId, currentInterviewStep]
+      properties:
+        applicationId: { type: integer }
+        currentInterviewStep:
+          type: integer
+          description: Updated InterviewStep id
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Invalid ID format
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional structured details (field-level errors, etc.)
+
+  responses:
+    BadRequest:
+      description: Invalid request payload or parameters
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
