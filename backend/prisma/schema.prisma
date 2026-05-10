@@ -130,11 +130,11 @@ model Application {
   positionId           Int
   candidateId          Int
   applicationDate      DateTime
-  currentInterviewStep Int
+  currentInterviewStep Int?
   notes                String?
   position             Position       @relation(fields: [positionId], references: [id])
   candidate            Candidate      @relation(fields: [candidateId], references: [id])
-  interviewStep        InterviewStep  @relation(fields: [currentInterviewStep], references: [id])
+  interviewStep        InterviewStep? @relation(fields: [currentInterviewStep], references: [id])
   interviews           Interview[]
 }
 

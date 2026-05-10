@@ -46,5 +46,5 @@ export const moveStage = async (
         select: { id: true, currentInterviewStep: true },
     });
 
-    return { applicationId: updated.id, currentInterviewStep: updated.currentInterviewStep };
+    return { applicationId: updated.id, currentInterviewStep: updated.currentInterviewStep ?? newInterviewStepId };
 };

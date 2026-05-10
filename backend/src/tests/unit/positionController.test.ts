@@ -60,6 +60,8 @@ describe('positionController.listCandidatesByPosition', () => {
                 fullName: 'Ada Lovelace',
                 currentInterviewStep: 'Tech Interview',
                 averageScore: 7.5,
+                lastEducation: { title: 'BSc Mathematics', institution: 'Cambridge' },
+                lastWorkExperience: { position: 'Engineer', company: 'Analytical Engines' },
             },
         ];
         mockedGetCandidates.mockResolvedValueOnce(candidates);
