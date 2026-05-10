@@ -12,8 +12,8 @@ Este documento ordena el trabajo pendiente sobre los specs y changes de OpenSpec
 
 | Spec | Estado | Pendiente |
 |---|---|---|
-| `gestion-candidatos` | Alineada con código (PR #5) | Resolver OQ-GC-01 (¿`GET /candidates/:id` incluye anidados?), OQ-GC-02 (auth V1) |
-| `tablero-kanban` | Alineada con código (PR #5) | Migrar a sintaxis canónica OpenSpec si se quiere validación estricta |
+| `gestion-candidatos` | Alineada con código (PR #5) · Sintaxis canónica OpenSpec ✅ (Fase D) | OQ-GC-01 y OQ-GC-02 resueltas |
+| `tablero-kanban` | Alineada con código (PR #5) · Sintaxis canónica OpenSpec ✅ (Fase D) | — |
 
 ### 1.2 Changes (`openspec/changes/`)
 
@@ -66,14 +66,14 @@ Cada tarea termina con su test asociado (T.FE.1–T.FE.4) en el mismo PR para ev
 2. **C.2** OQ-GC-02: documentar formalmente el gap de auth V1 (o introducir middleware básico si se decide cubrirlo).
 3. **C.3** Archivar `kanban-frontend` cuando FE.* y T.FE.* estén ✅.
 
-### Fase D (opcional) — Migración a sintaxis canónica OpenSpec
+### Fase D (opcional) — Migración a sintaxis canónica OpenSpec ✅
 
-Si se quiere que `npx openspec validate --specs` pase:
-- Reescribir `## Descripción` → `## Purpose`.
-- Reescribir `### REQ-XX-NNN — ...` → `### Requirement: ...`.
-- Reescribir bloques Gherkin como `#### Scenario:` con `- **WHEN** ...` / `- **THEN** ...`.
+Completada. `npx openspec validate --specs` pasa para ambas capabilities (`gestion-candidatos` y `tablero-kanban`). Transformaciones aplicadas:
+- `## Descripción` → `## Purpose`.
+- `### REQ-XX-NNN — ...` → `### Requirement: ...` (los IDs legacy se preservan como anotación "ID legado: REQ-XX-NNN" dentro de la línea de Origen para no romper trazabilidad).
+- Bloques Gherkin → `#### Scenario:` con bullets `- **GIVEN/WHEN/THEN/AND** ...`.
 
-Es un cambio mecánico pero amplio. Hacerlo en un solo PR independiente para no mezclar con cambios funcionales.
+Pendiente fuera de Fase D: los deltas de change (`openspec/changes/*/specs/.../spec.md`) aún usan el formato legacy `### REQ-…`. Migrarlos solo si se desea que `npx openspec validate --changes` pase.
 
 ---
 

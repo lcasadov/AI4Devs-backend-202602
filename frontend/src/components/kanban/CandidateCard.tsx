@@ -7,6 +7,7 @@ export interface CandidateCardData {
     applicationId: number;
     fullName: string;
     currentInterviewStep: string | null;
+    currentInterviewStepId: number | null;
     averageScore: number | null;
     lastEducation: { title: string; institution: string } | null;
     lastWorkExperience: { position: string; company: string } | null;

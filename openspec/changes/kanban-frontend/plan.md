@@ -120,9 +120,9 @@ Si se identifican incumplimientos, ajustar el código en commits dedicados antes
 
 ## 8. Definición de "hecho"
 
-- [ ] FE.1–FE.8 implementadas.
-- [ ] T.FE.1–T.FE.4 verdes (`npm test` en frontend).
-- [ ] `npm run build` sin errores ni warnings nuevos.
-- [ ] Tablero funcional manualmente con datos reales.
-- [ ] `tasks.md` actualizado.
-- [ ] PR abierta en `lcasadov/AI4Devs-backend-202602`.
+- [x] FE.1–FE.8 implementadas (mergeadas en PR #7).
+- [x] T.FE.1–T.FE.4 verdes (`npm test` en frontend) — 37 tests pasando incluyendo cobertura ampliada del drag handler de KanbanBoard.
+- [ ] `npm run build` sin errores ni warnings nuevos — pendiente de verificación explícita.
+- [ ] Tablero funcional manualmente con datos reales — pendiente de QA manual end-to-end.
+- [x] `tasks.md` actualizado.
+- [x] PR abierta en `lcasadov/AI4Devs-backend-202602` (PR #7 mergeado).

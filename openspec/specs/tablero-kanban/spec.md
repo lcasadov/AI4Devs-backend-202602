@@ -6,190 +6,185 @@
 > - Migraciones: `backend/prisma/migrations/20260510181710_make_current_interview_step_nullable/`
 > - Entidades: `docs/readme.md §4` → Application, Candidate, Position, InterviewStep, InterviewFlow, Interview, Education, WorkExperience
 
-## Descripción
+## Purpose
 
 Habilita el caso de uso central del producto: un tablero Kanban donde cada columna es una fase del proceso de entrevista (`InterviewStep`) y cada tarjeta es un candidato en proceso (`Application`). El reclutador puede visualizar todos los candidatos de una posición con su fase actual y puntuación media, y mover tarjetas entre columnas mediante drag&drop. Es el diferenciador operativo principal de LTI frente a otras soluciones.
 
----
+## Requirements
 
-## Requisitos
-
-### REQ-KB-001 — Listar candidatos de una posición para el Kanban
+### Requirement: Listar candidatos de una posición para el Kanban
 
 The system SHALL devolver, para una posición dada, el listado de todas las `Application` activas con: `candidateId`, `applicationId` (id de la `Application`, requerido por `PUT /candidates/:id/stage`), `fullName` (concatenación `firstName + " " + lastName`), `currentInterviewStep` (nombre de la fase o `null` si "No Asignado"), `currentInterviewStepId` (id numérico del step actual o `null`, usado por el frontend para detectar drops sobre la misma columna y evitar PUT innecesarios), `averageScore` (media de entrevistas con score no nulo o `null` si no hay), `lastEducation` (`{title, institution}` de la formación más reciente por `startDate desc`, o `null`) y `lastWorkExperience` (`{position, company}` de la experiencia más reciente por `startDate desc`, o `null`), resolviendo el resultado en una sola consulta (sin N+1).
 
-**Origen:** `docs/readme.md §2.6` · CU-04 · ampliado por B.1-ext (formación/experiencia más reciente) · ampliado por FE.6 (`applicationId` + `currentInterviewStepId` requeridos por el tablero drag&drop, PR #7)
+**Origen:** `docs/readme.md §2.6` · CU-04 · ampliado por B.1-ext (formación/experiencia más reciente) · ampliado por FE.6 (`applicationId` + `currentInterviewStepId` requeridos por el tablero drag&drop, PR #7). ID legado: REQ-KB-001.
 
-#### Escenarios
+#### Scenario: Posición con candidatos
 
-```gherkin
-Scenario: Posición con candidatos
-  Given la Position 42 tiene 3 Applications
-    And el candidato A tiene 2 entrevistas con scores [4, 5]
-    And el candidato B tiene 1 entrevista con score null
-    And el candidato C no tiene entrevistas
-  When envío GET /positions/42/candidates
-  Then la respuesta es 200
-    And el array contiene 3 elementos
-    And el candidato A tiene averageScore = 4.5
-    And el candidato B tiene averageScore = null
-    And el candidato C tiene averageScore = null
+- **GIVEN** la Position 42 tiene 3 Applications
+- **AND** el candidato A tiene 2 entrevistas con scores `[4, 5]`
+- **AND** el candidato B tiene 1 entrevista con score `null`
+- **AND** el candidato C no tiene entrevistas
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** la respuesta es 200
+- **AND** el array contiene 3 elementos
+- **AND** el candidato A tiene `averageScore = 4.5`
+- **AND** el candidato B tiene `averageScore = null`
+- **AND** el candidato C tiene `averageScore = null`
 
-Scenario: Posición sin candidatos
-  Given la Position 50 no tiene Applications
-  When envío GET /positions/50/candidates
-  Then la respuesta es 200
-    And el cuerpo es un array vacío []
+#### Scenario: Posición sin candidatos
 
-Scenario: Posición inexistente
-  Given que no existe la Position con id 9999
-  When envío GET /positions/9999/candidates
-  Then la respuesta es 404
-    And el cuerpo contiene "Position not found"
+- **GIVEN** la Position 50 no tiene Applications
+- **WHEN** envío `GET /positions/50/candidates`
+- **THEN** la respuesta es 200
+- **AND** el cuerpo es un array vacío `[]`
 
-Scenario: ID de posición no numérico
-  When envío GET /positions/abc/candidates
-  Then la respuesta es 400
+#### Scenario: Posición inexistente
 
-Scenario: Candidato con varias formaciones — devuelve la más reciente
-  Given el candidato A tiene Education [{startDate: 2018-09-01, title: "Grado", institution: "UAM"}, {startDate: 2022-09-01, title: "Máster", institution: "UC3M"}]
-  When envío GET /positions/42/candidates
-  Then el elemento del candidato A tiene lastEducation = { title: "Máster", institution: "UC3M" }
+- **GIVEN** que no existe la Position con id 9999
+- **WHEN** envío `GET /positions/9999/candidates`
+- **THEN** la respuesta es 404
+- **AND** el cuerpo contiene `"Position not found"`
 
-Scenario: Candidato con varias experiencias — devuelve la más reciente
-  Given el candidato A tiene WorkExperience [{startDate: 2019-01-01, position: "Junior", company: "X"}, {startDate: 2023-06-01, position: "Senior", company: "Y"}]
-  When envío GET /positions/42/candidates
-  Then el elemento del candidato A tiene lastWorkExperience = { position: "Senior", company: "Y" }
+#### Scenario: ID de posición no numérico
 
-Scenario: Candidato sin formación ni experiencia
-  Given el candidato C no tiene Education ni WorkExperience
-  When envío GET /positions/42/candidates
-  Then el elemento del candidato C tiene lastEducation = null
-    And lastWorkExperience = null
+- **WHEN** envío `GET /positions/abc/candidates`
+- **THEN** la respuesta es 400
 
-Scenario: Application con currentInterviewStep nulo
-  Given una Application del candidato D con currentInterviewStep = null
-  When envío GET /positions/42/candidates
-  Then el elemento del candidato D tiene currentInterviewStep = null
-    And currentInterviewStepId = null
+#### Scenario: Candidato con varias formaciones devuelve la más reciente
 
-Scenario: Respuesta incluye applicationId y currentInterviewStepId
-  Given la Application 100 del candidato A está en el step "Technical" (id 5)
-  When envío GET /positions/42/candidates
-  Then el elemento del candidato A contiene applicationId = 100
-    And currentInterviewStepId = 5
-    And currentInterviewStep = "Technical"
-```
+- **GIVEN** el candidato A tiene Education `[{startDate: 2018-09-01, title: "Grado", institution: "UAM"}, {startDate: 2022-09-01, title: "Máster", institution: "UC3M"}]`
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** el elemento del candidato A tiene `lastEducation = { title: "Máster", institution: "UC3M" }`
 
----
+#### Scenario: Candidato con varias experiencias devuelve la más reciente
 
-### REQ-KB-002 — Mover candidato entre fases del Kanban
+- **GIVEN** el candidato A tiene WorkExperience `[{startDate: 2019-01-01, position: "Junior", company: "X"}, {startDate: 2023-06-01, position: "Senior", company: "Y"}]`
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** el elemento del candidato A tiene `lastWorkExperience = { position: "Senior", company: "Y" }`
+
+#### Scenario: Candidato sin formación ni experiencia
+
+- **GIVEN** el candidato C no tiene Education ni WorkExperience
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** el elemento del candidato C tiene `lastEducation = null`
+- **AND** `lastWorkExperience = null`
+
+#### Scenario: Application con currentInterviewStep nulo
+
+- **GIVEN** una Application del candidato D con `currentInterviewStep = null`
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** el elemento del candidato D tiene `currentInterviewStep = null`
+- **AND** `currentInterviewStepId = null`
+
+#### Scenario: Respuesta incluye applicationId y currentInterviewStepId
+
+- **GIVEN** la Application 100 del candidato A está en el step "Technical" (id 5)
+- **WHEN** envío `GET /positions/42/candidates`
+- **THEN** el elemento del candidato A contiene `applicationId = 100`
+- **AND** `currentInterviewStepId = 5`
+- **AND** `currentInterviewStep = "Technical"`
+
+### Requirement: Mover candidato entre fases del Kanban
 
 The system SHALL actualizar la fase actual (`currentInterviewStep`) de una `Application` específica, validando que el step destino pertenece al `InterviewFlow` de la posición de esa Application, y que la Application pertenece al candidato indicado en la URL.
 
-**Origen:** `docs/readme.md §2.7` · CU-05
+**Origen:** `docs/readme.md §2.7` · CU-05. ID legado: REQ-KB-002.
 
-#### Escenarios
+#### Scenario: Movimiento válido entre fases
 
-```gherkin
-Scenario: Movimiento válido entre fases
-  Given una Application 100 del candidato 7 en Position 42
-    And la Position 42 usa un InterviewFlow con steps [Screening, Technical, Offer]
-    And el step "Technical" con id 5 pertenece a ese flow
-  When envío PUT /candidates/7/stage con { applicationId: 100, newInterviewStepId: 5 }
-  Then la respuesta es 200
-    And Application 100 tiene currentInterviewStep = "Technical"
+- **GIVEN** una Application 100 del candidato 7 en Position 42
+- **AND** la Position 42 usa un InterviewFlow con steps `[Screening, Technical, Offer]`
+- **AND** el step "Technical" con id 5 pertenece a ese flow
+- **WHEN** envío `PUT /candidates/7/stage` con `{ applicationId: 100, newInterviewStepId: 5 }`
+- **THEN** la respuesta es 200
+- **AND** Application 100 tiene `currentInterviewStep = "Technical"`
 
-Scenario: Step destino pertenece a otro flow
-  Given una Application 100 con el InterviewFlow A
-    And un InterviewStep con id 99 que pertenece al InterviewFlow B
-  When envío PUT /candidates/7/stage con { applicationId: 100, newInterviewStepId: 99 }
-  Then la respuesta es 400
-    And el cuerpo contiene "Invalid step for this position"
+#### Scenario: Step destino pertenece a otro flow
 
-Scenario: Application no pertenece al candidato indicado
-  Given la Application 100 pertenece al candidato 7
-  When envío PUT /candidates/9/stage con { applicationId: 100, newInterviewStepId: 5 }
-  Then la respuesta es 404
+- **GIVEN** una Application 100 con el InterviewFlow A
+- **AND** un InterviewStep con id 99 que pertenece al InterviewFlow B
+- **WHEN** envío `PUT /candidates/7/stage` con `{ applicationId: 100, newInterviewStepId: 99 }`
+- **THEN** la respuesta es 400
+- **AND** el cuerpo contiene `"Invalid step for this position"`
 
-Scenario: Mover a la misma fase actual (idempotente)
-  Given una Application 100 ya en el step "Technical" (id 5)
-  When envío PUT /candidates/7/stage con { applicationId: 100, newInterviewStepId: 5 }
-  Then la respuesta es 200
-    And Application 100 sigue en "Technical"
+#### Scenario: Application no pertenece al candidato indicado
 
-Scenario: Application con currentInterviewStep nulo (estado inicial)
-  Given una Application 100 con currentInterviewStep = null ("No Asignado")
-  When envío PUT /candidates/7/stage con { applicationId: 100, newInterviewStepId: 5 }
-  Then la respuesta es 200
-    And Application 100 tiene currentInterviewStep = 5
+- **GIVEN** la Application 100 pertenece al candidato 7
+- **WHEN** envío `PUT /candidates/9/stage` con `{ applicationId: 100, newInterviewStepId: 5 }`
+- **THEN** la respuesta es 404
 
-Scenario: Body inválido (sin applicationId)
-  When envío PUT /candidates/7/stage con body {}
-  Then la respuesta es 400
-```
+#### Scenario: Mover a la misma fase actual (idempotente)
 
----
+- **GIVEN** una Application 100 ya en el step "Technical" (id 5)
+- **WHEN** envío `PUT /candidates/7/stage` con `{ applicationId: 100, newInterviewStepId: 5 }`
+- **THEN** la respuesta es 200
+- **AND** Application 100 sigue en "Technical"
 
-### REQ-KB-003 — Listar fases (`InterviewStep`) de una posición
+#### Scenario: Application con currentInterviewStep nulo (estado inicial)
+
+- **GIVEN** una Application 100 con `currentInterviewStep = null` ("No Asignado")
+- **WHEN** envío `PUT /candidates/7/stage` con `{ applicationId: 100, newInterviewStepId: 5 }`
+- **THEN** la respuesta es 200
+- **AND** Application 100 tiene `currentInterviewStep = 5`
+
+#### Scenario: Body inválido sin applicationId
+
+- **WHEN** envío `PUT /candidates/7/stage` con body `{}`
+- **THEN** la respuesta es 400
+
+### Requirement: Listar fases de una posición
 
 The system SHALL devolver, para una posición dada, los `InterviewStep` del `InterviewFlow` asociado a esa posición, ordenados ascendentemente por `orderIndex`, devolviendo `{ id, name, orderIndex }` por step. Sirve al frontend para construir las columnas del tablero Kanban.
 
-**Origen:** B.7 — soporte de UI Kanban (no había caso de uso explícito en `docs/readme.md`, pero se desprende de §2.6 CU-04)
+**Origen:** B.7 — soporte de UI Kanban (no había caso de uso explícito en `docs/readme.md`, pero se desprende de §2.6 CU-04). ID legado: REQ-KB-003.
 
-#### Escenarios
+#### Scenario: Posición con flow estándar
 
-```gherkin
-Scenario: Posición con flow estándar
-  Given la Position 42 usa un InterviewFlow con steps [Screening (orderIndex=1), Technical (orderIndex=2), Offer (orderIndex=3)]
-  When envío GET /positions/42/interviewSteps
-  Then la respuesta es 200
-    And el array tiene 3 elementos en ese orden
-    And cada elemento contiene { id, name, orderIndex }
+- **GIVEN** la Position 42 usa un InterviewFlow con steps `[Screening (orderIndex=1), Technical (orderIndex=2), Offer (orderIndex=3)]`
+- **WHEN** envío `GET /positions/42/interviewSteps`
+- **THEN** la respuesta es 200
+- **AND** el array tiene 3 elementos en ese orden
+- **AND** cada elemento contiene `{ id, name, orderIndex }`
 
-Scenario: Posición con flow sin steps definidos
-  Given la Position 80 usa un InterviewFlow sin steps asociados
-  When envío GET /positions/80/interviewSteps
-  Then la respuesta es 200
-    And el cuerpo es un array vacío []
+#### Scenario: Posición con flow sin steps definidos
 
-Scenario: Posición inexistente
-  Given que no existe la Position con id 9999
-  When envío GET /positions/9999/interviewSteps
-  Then la respuesta es 404
-    And el cuerpo contiene "Position not found"
+- **GIVEN** la Position 80 usa un InterviewFlow sin steps asociados
+- **WHEN** envío `GET /positions/80/interviewSteps`
+- **THEN** la respuesta es 200
+- **AND** el cuerpo es un array vacío `[]`
 
-Scenario: ID de posición no numérico
-  When envío GET /positions/abc/interviewSteps
-  Then la respuesta es 400
-```
+#### Scenario: Posición inexistente
 
----
+- **GIVEN** que no existe la Position con id 9999
+- **WHEN** envío `GET /positions/9999/interviewSteps`
+- **THEN** la respuesta es 404
+- **AND** el cuerpo contiene `"Position not found"`
 
-### REQ-KB-004 — Listar todas las posiciones (selector del tablero)
+#### Scenario: ID de posición no numérico
+
+- **WHEN** envío `GET /positions/abc/interviewSteps`
+- **THEN** la respuesta es 400
+
+### Requirement: Listar todas las posiciones
 
 The system SHALL devolver el listado de todas las posiciones del sistema con `{ id, title, status }`, sirviendo al selector de posición que precede al tablero Kanban en el frontend.
 
-**Origen:** B.8 — soporte de UI Kanban (selector de Position previo a CU-04)
+**Origen:** B.8 — soporte de UI Kanban (selector de Position previo a CU-04). ID legado: REQ-KB-004.
 
-#### Escenarios
+#### Scenario: Hay posiciones registradas
 
-```gherkin
-Scenario: Hay posiciones registradas
-  Given existen 3 Positions con distintos status
-  When envío GET /positions
-  Then la respuesta es 200
-    And el array contiene 3 elementos
-    And cada elemento contiene { id, title, status }
+- **GIVEN** existen 3 Positions con distintos status
+- **WHEN** envío `GET /positions`
+- **THEN** la respuesta es 200
+- **AND** el array contiene 3 elementos
+- **AND** cada elemento contiene `{ id, title, status }`
 
-Scenario: No hay posiciones
-  Given no hay Positions en la base de datos
-  When envío GET /positions
-  Then la respuesta es 200
-    And el cuerpo es un array vacío []
-```
+#### Scenario: No hay posiciones
 
----
+- **GIVEN** no hay Positions en la base de datos
+- **WHEN** envío `GET /positions`
+- **THEN** la respuesta es 200
+- **AND** el cuerpo es un array vacío `[]`
 
 ## Reglas de negocio aplicables
 
@@ -204,8 +199,6 @@ Scenario: No hay posiciones
 | RN-KB-07 | Los `InterviewStep` devueltos por `GET /positions/:id/interviewSteps` se ordenan por `orderIndex` ascendente; este orden define las columnas del tablero. | B.7 |
 | RN-KB-08 | El DTO de `GET /positions/:id/candidates` incluye `applicationId` (necesario para el body de `PUT /candidates/:id/stage`) y `currentInterviewStepId` (usado por el frontend para evitar PUT cuando el drop cae en la misma columna). | FE.6 (PR #7) |
 
----
-
 ## Restricciones de seguridad
 
 | Acción | Roles permitidos | Origen |
@@ -215,16 +208,12 @@ Scenario: No hay posiciones
 | GET /positions/:id/interviewSteps | Reclutador con acceso a la posición | B.7 — gap: no hay auth en V1 |
 | PUT /candidates/:id/stage | Reclutador con acceso a la posición | `docs/readme.md §2.7` — gap: no hay auth en V1 |
 
----
-
 ## Requisitos no funcionales
 
 - **Rendimiento:** `GET /positions/:id/candidates` P95 < 300 ms con hasta 200 candidatos y 5 entrevistas/candidato. `PUT /candidates/:id/stage` P95 < 200 ms. `GET /positions/:id/interviewSteps` y `GET /positions` P95 < 100 ms.
 - **N+1:** `GET /positions/:id/candidates` debe resolver en una única consulta (usar `include` de Prisma con `take: 1, orderBy: { startDate: 'desc' }` para `educations` y `workExperiences`, y resolver `averageScore` en código sobre el `interviews` ya cargado, evitando bucle por candidato).
 - **Concurrencia:** dos drag&drop simultáneos sobre la misma `Application` → último write gana. Optimistic locking (`version`) queda como mejora futura.
 - **Paginación:** no contemplada en V1; diseñar contrato con margen para `?page&pageSize` futuro.
-
----
 
 ## Open Questions
 

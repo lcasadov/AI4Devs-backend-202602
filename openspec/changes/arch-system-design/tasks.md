@@ -59,8 +59,8 @@
 - [x] 2.2 Crear OpenSpec change (proposal.md + design.md + tasks.md)
 - [x] 2.3 Crear docs/plan/plan.md con el plan aprobado
 - [x] 2.4 Crear docs/tasks.md con seguimiento de la tarea
-- [ ] 2.5 Commit local con mensaje descriptivo
-- [ ] 2.6 Push y creación de PR (pendiente de confirmación del usuario)
+- [x] 2.5 Commit local con mensaje descriptivo → Realizado en los commits de PRs #1/#2/#3 (ver `openspec/plan.md` §1.2).
+- [x] 2.6 Push y creación de PR (pendiente de confirmación del usuario) → Mergeado vía PRs #1/#2/#3.
 
 ## Out of scope (no se hace en este change)
 
