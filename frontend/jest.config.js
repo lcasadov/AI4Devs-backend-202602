@@ -3,7 +3,7 @@ module.exports = {
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
-  setupFilesAfterFramework: ['@testing-library/jest-dom/extend-expect'],
+  setupFilesAfterEnv: ['@testing-library/jest-dom/extend-expect'],
   moduleNameMapper: {
     '\\.(css|less|scss|png|jpg|svg|gif)$': '<rootDir>/__mocks__/fileMock.js',
   },
